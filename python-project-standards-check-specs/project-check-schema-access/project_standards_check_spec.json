@@ -1,0 +1,44 @@
+/* This file is the descriptor for the Custom python Project Standards Check spec project-check-schema-access */
+{
+  "meta": {
+    // label: name of the Project Standards Check spec type as displayed, should be short
+    "label": "Project Standards: Schema access verification",
+    // description: longer string to help end users understand what this Project Standards Check spec type is
+    "description": "Detects unauthorized Snowflake schema usage against the central allowlist.",
+    // icon: must be one of the FontAwesome 5.15.4 icons, complete list here at https://fontawesome.com/v5/docs/
+    "icon": "fas fa-code"
+  },
+
+  /* optional list of tags.
+  */
+  "tags": ["AUTOMATION"],
+
+  /* params:
+  DSS will generate a formular from this list of requested parameters.
+  Your component code can then access the value provided by users using the "name" field of each parameter.
+
+  Available parameter types include:
+  STRING, INT, DOUBLE, BOOLEAN, DATE, SELECT, TEXTAREA, PRESET and others.
+
+  For the full list and for more details, see the documentation: https://doc.dataiku.com/dss/latest/plugins/reference/params.html
+  */
+  "params": [
+    { 
+      "name": "severity",
+      "label": "Failure Severity",
+      "type": "SELECT",
+      "description": "Severity level reported when unauthorized schemas are found.",
+      "defaultValue": "3",
+      "mandatory": true,
+      "selectChoices": [
+        { "value": "1", "label": "1 — Info"     },
+        { "value": "2", "label": "2 — Warning"  },
+        { "value": "3", "label": "3 — Error"    },
+        { "value": "4", "label": "4 — Critical" },
+        { "value": "5", "label": "5 — Blocker"  }
+      ],
+      "defaultValue": "5",
+      "mandatory": true
+    }
+  ]
+}

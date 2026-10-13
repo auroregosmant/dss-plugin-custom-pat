@@ -1,0 +1,41 @@
+/* This file is the descriptor for the Custom python Project Standards Check spec check-project-has-git */
+{
+  "meta": {
+    // label: name of the Project Standards Check spec type as displayed, should be short
+    "label": "Project Standards: Git connection",
+    // description: longer string to help end users understand what this Project Standards Check spec type is
+    "description": "Check that the project is connected to a Git repository",
+    // icon: must be one of the FontAwesome 5.15.4 icons, complete list here at https://fontawesome.com/v5/docs/
+    "icon": "fas fa-code"
+  },
+
+  /* optional list of tags.
+  */
+  "tags": ["ROBUSTNESS"],
+
+  /* params:
+  DSS will generate a formular from this list of requested parameters.
+  Your component code can then access the value provided by users using the "name" field of each parameter.
+
+  Available parameter types include:
+  STRING, INT, DOUBLE, BOOLEAN, DATE, SELECT, TEXTAREA, PRESET and others.
+
+  For the full list and for more details, see the documentation: https://doc.dataiku.com/dss/latest/plugins/reference/params.html
+  */
+  "params": [
+    {
+      "name": "severity",
+      "label": "Severity Level",
+      "type": "SELECT",
+      "selectChoices": [
+        { "value": "1", "label": "LOWEST" },
+        { "value": "2", "label": "LOW" },
+        { "value": "3", "label": "MEDIUM" },
+        { "value": "4", "label": "HIGH" },
+        { "value": "5", "label": "CRITICAL" }
+      ],
+      "defaultValue": "5",
+      "mandatory": true
+    }
+  ]
+}

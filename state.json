@@ -1,0 +1,12 @@
+{
+  "actions": [
+    {
+      "ts": 1791886168250,
+      "action": "INSTALL",
+      "user": "aurore.gosmant@dataiku.com"
+    }
+  ],
+  "gitState": {
+    "enabled": false
+  }
+}
