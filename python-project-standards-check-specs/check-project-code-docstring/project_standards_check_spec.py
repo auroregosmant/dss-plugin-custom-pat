@@ -1,4 +1,6 @@
 import ast
+import json  # ADDED: read external-libraries.json (Python roots + Git imports)
+import time  # ADDED: time budget per project
 from pathlib import PurePosixPath
 
 from dataiku.project_standards import (
@@ -28,6 +30,10 @@ class MyProjectStandardsCheckSpec(ProjectStandardsCheckSpec):
     # This limit applies AFTER reading the file through the DSS API.
     MAX_SOURCE_BYTES = 1_000_000
 
+    MAX_SOURCES = 500           # ADDED: max library files + recipes read per project
+    MAX_FOLDERS = 2_000         # ADDED: max library folders listed per project
+    TIME_BUDGET_SECONDS = 60    # ADDED: max runtime per project
+
     def run(self):
         stats = {
             "analyzed_library_files": 0,
@@ -37,7 +43,10 @@ class MyProjectStandardsCheckSpec(ProjectStandardsCheckSpec):
             "unreadable_source_count": 0,
             "missing_docstrings": [],
             "unreadable_sources": [],
+            "scan_incomplete": None,  # ADDED: set when a budget limit stops the scan
         }
+        self._deadline = time.monotonic() + self.TIME_BUDGET_SECONDS  # ADDED
+        self._folders_listed = 0                                      # ADDED
 
         try:
             severity = int(self.config["severity"])
@@ -55,7 +64,7 @@ class MyProjectStandardsCheckSpec(ProjectStandardsCheckSpec):
             )
 
             # Never report success after an incomplete scan.
-            if stats["unreadable_source_count"]:
+            if stats["unreadable_source_count"] or stats["scan_incomplete"]:  # UPDATED: also when a budget limit was hit
                 return ProjectStandardsCheckRunResult.error(
                     message=(
                         "Docstring scan incomplete: "
@@ -63,6 +72,8 @@ class MyProjectStandardsCheckSpec(ProjectStandardsCheckSpec):
                         "could not be analyzed. "
                         f"{stats['missing_docstring_count']} missing "
                         "docstring(s) found in analyzed sources."
+                        + (f" Stopped early: {stats['scan_incomplete']}."  # ADDED
+                           if stats["scan_incomplete"] else "")            # ADDED
                     ),
                     details=stats,
                 )
@@ -98,24 +109,71 @@ class MyProjectStandardsCheckSpec(ProjectStandardsCheckSpec):
                 details=stats,
             )
 
+    # ADDED: stops the scan once a per-project limit is reached.
+    def _budget_left(self, stats):
+        if stats["scan_incomplete"]:
+            return False
+        sources = (stats["analyzed_library_files"]
+                   + stats["analyzed_python_recipes"]
+                   + stats["unreadable_source_count"])
+        if sources >= self.MAX_SOURCES:
+            stats["scan_incomplete"] = f"source limit ({self.MAX_SOURCES})"
+        elif self._folders_listed >= self.MAX_FOLDERS:
+            stats["scan_incomplete"] = f"folder limit ({self.MAX_FOLDERS})"
+        elif time.monotonic() > self._deadline:
+            stats["scan_incomplete"] = f"time limit ({self.TIME_BUDGET_SECONDS}s)"
+        return stats["scan_incomplete"] is None
+
+    # ADDED: Python roots and Git-imported folders, from external-libraries.json.
+    def _read_library_config(self, root_items):
+        roots, git_targets = {"python"}, set()
+        conf_item = next(
+            (i for i in root_items
+             if str(getattr(i, "path", "")).strip("/") == "external-libraries.json"),
+            None,
+        )
+        if conf_item is None:
+            return roots, git_targets
+        try:
+            conf = json.loads(conf_item.read() or "{}")
+        except Exception:
+            return roots, git_targets
+        roots = {str(p).strip("/") for p in conf.get("pythonPath", []) if p} or roots
+        for target in (conf.get("gitReferences") or {}):
+            target = str(target).strip("/")
+            if target:
+                # Git targets are relative to the Python root (lib/python).
+                git_targets.update(f"{r}/{target}" for r in roots)
+        return roots, git_targets
+
     def _scan_library(self, stats):
         """Walk library items without entering excluded directories."""
         library = self.project.get_library()
-        pending = list(library.list())
+        root_items = list(library.list())                                  # UPDATED: was pending = list(library.list())
+        roots, git_targets = self._read_library_config(root_items)         # ADDED
+        pending = [i for i in root_items                                   # ADDED: only walk Python roots,
+                   if str(getattr(i, "path", "")).strip("/") in roots]     # ADDED: never lib/R, local-static, ...
 
         # Iterative traversal avoids recursion depth issues.
         while pending:
+            if not self._budget_left(stats):  # ADDED: stop once a limit is hit
+                return                        # ADDED
+
             item = pending.pop()
             path = str(getattr(item, "path", ""))
             normalized = path.replace("\\", "/")
             parts = PurePosixPath(normalized).parts
+            rel = normalized.strip("/")  # ADDED: e.g. "python/shared_utils/x.py"
 
             # IMPORTANT: exclude BEFORE listing or reading the item.
-            if any(part in self.EXCLUDED_DIRS for part in parts):
+            if (any(part in self.EXCLUDED_DIRS for part in parts)          # UPDATED: added the Git-import test below
+                    or any(rel == t or rel.startswith(t + "/")             # ADDED: skip Git-imported libraries
+                           for t in git_targets)):                         # ADDED
                 stats["excluded_library_items"] += 1
                 continue
 
             if callable(getattr(item, "list", None)):
+                self._folders_listed += 1  # ADDED: count folder listings for the budget
                 try:
                     pending.extend(item.list())
                 except Exception as exc:
@@ -142,6 +200,9 @@ class MyProjectStandardsCheckSpec(ProjectStandardsCheckSpec):
         for recipe_info in self.project.list_recipes():
             if recipe_info.get("type") != "python":
                 continue
+
+            if not self._budget_left(stats):  # ADDED: stop once a limit is hit
+                return                        # ADDED
 
             name = recipe_info.get("name")
             source = f"recipe:{name}"
