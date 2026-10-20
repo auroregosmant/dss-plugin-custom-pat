@@ -1,6 +1,6 @@
 {
     // Plugin identifiers are globally unique and only contain A-Za-z0-9_-
-    "id": "pat-custom-checks2-DEV",
+    "id": "pat-custom-checks2",
 
     // It is highly recommended to use Semantic Versioning
     "version": "2.0.1",
