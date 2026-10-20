@@ -1,0 +1,50 @@
+name: Protect plugin id
+on: pull_request
+
+jobs:
+  check-plugin-id:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install JSON5 parser
+        run: npm install --no-save json5
+
+      - name: Check that plugin.json id is unchanged
+        run: |
+          BASE="origin/${{ github.base_ref }}"
+
+          # Nothing to protect if the base branch has no plugin.json
+          if ! git cat-file -e "$BASE:plugin.json" 2>/dev/null; then
+            echo "No plugin.json on base branch, skipping."
+            exit 0
+          fi
+
+          if [ ! -f plugin.json ]; then
+            echo "::error file=plugin.json::plugin.json must not be deleted"
+            exit 1
+          fi
+
+          git show "$BASE:plugin.json" > /tmp/base-plugin.json
+
+          get_id() {
+            node -e '
+              const JSON5 = require("json5");
+              const fs = require("fs");
+              const data = JSON5.parse(fs.readFileSync(process.argv[1], "utf8"));
+              if (!data.id) { console.error("No id field"); process.exit(1); }
+              console.log(data.id);
+            ' "$1"
+          }
+
+          BASE_ID=$(get_id /tmp/base-plugin.json) || { echo "::error::Could not parse plugin.json on base branch"; exit 1; }
+          HEAD_ID=$(get_id plugin.json)           || { echo "::error file=plugin.json::Could not parse plugin.json"; exit 1; }
+
+          if [ "$BASE_ID" != "$HEAD_ID" ]; then
+            echo "::error file=plugin.json::Plugin id changed from '$BASE_ID' to '$HEAD_ID'. The id must not be modified."
+            exit 1
+          fi
+
+          echo "Plugin id unchanged ($HEAD_ID)."
