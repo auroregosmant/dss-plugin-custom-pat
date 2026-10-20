@@ -9,4 +9,4 @@
 .htmlcov
 .DS_Store
 .idea
-plugin.json
+/plugin.json
