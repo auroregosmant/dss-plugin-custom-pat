@@ -1,9 +1,9 @@
 {
     // Plugin identifiers are globally unique and only contain A-Za-z0-9_-
-    "id": "pat-custom-checks2",
+    "id": "pat-custom-checks2-DEV",
 
     // It is highly recommended to use Semantic Versioning
-    "version": "0.0.1",
+    "version": "2.0.1",
 
     // Meta data for display purposes:
     "meta": {
