@@ -23,7 +23,7 @@ class MyProjectStandardsCheckSpec(ProjectStandardsCheckSpec):
         "dist", "build", "vendor", "third_party",
     })
 
-    MAX_REPORTED_ISSUES = 50
+    MAX_REPORTED_ISSUES = 20
     MAX_REPORTED_ERRORS = 10
 
     # Protect AST parsing from unusually large source files.
