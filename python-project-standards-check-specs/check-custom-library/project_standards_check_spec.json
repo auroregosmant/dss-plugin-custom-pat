@@ -4,7 +4,7 @@
     // label: name of the Project Standards Check spec type as displayed, should be short
     "label": "Project Standards: Custom library",
     // description: longer string to help end users understand what this Project Standards Check spec type is
-    "description": "Check whether the project has a custom library",
+    "description": "Check whether the project has a custom library. DOING SOME TESTS.",
     // icon: must be one of the FontAwesome 5.15.4 icons, complete list here at https://fontawesome.com/v5/docs/
     "icon": "fas fa-code"
   },
